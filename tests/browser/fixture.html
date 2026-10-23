@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<title>Quota renderer regression fixture</title>
+<style>
+  body { margin: 0; background: #202020; color: white; font: 14px system-ui; }
+  .host { position: fixed; inset: 0; transform: translate(23px, 11px); }
+  .composer-right { position: absolute; right: 64px; bottom: 40px; display: flex; align-items: center; gap: 12px; }
+</style>
+<script src="/vendor/react.js"></script>
+<script src="/vendor/react-dom.js"></script>
+<script type="importmap">{"imports":{"react":"/react-shim.mjs"}}</script>
+<div class="host"><div class="composer-right">
+  <span class="composer-model-thinking-model">gpt-test</span><span id="slot"></span>
+</div></div>
+<script type="module">
+import { onLoad, onUnload } from '/renderer/index.mjs';
+const pending = new Map();
+const plans = [];
+let kind = new URL(location.href).searchParams.get('initial') || 'ready';
+let revision = 0, reads = 0, reactRoot;
+function reading(type) {
+  if (type === 'init-error') return { ok: false, code: 'INIT', message: 'initialization pending' };
+  const failed = type === 'cli-error';
+  const windows = failed ? [] : [
+    { period: 'session', remainingPercent: 76, usedPercent: 24, windowMinutes: 300 },
+    { period: 'week', remainingPercent: 42, usedPercent: 58, windowMinutes: 10080 },
+  ];
+  return { ok: true, revision: ++revision,
+    summary: { state: failed ? 'empty' : 'ready', locale: 'zh-CN', account: { shortVendor: 'ChatGPT', plan: 'plus' }, windows: windows.slice(0, 1) },
+    snapshot: { generatedAt: new Date().toISOString(), accounts: [{ id: 'cli-test', provider: 'openai-codex',
+      label: 'ChatGPT', source: 'cli', status: failed ? 'error' : 'ok', windows,
+      error: failed ? 'HTTP 401 — credentials expired' : null }] } };
+}
+let samples = [], sampling = false, initialPop;
+function sample() {
+  if (!sampling) return;
+  const pop = document.querySelector('.sqb-pop');
+  const button = document.querySelector('.sqb-chip');
+  if (!pop) samples.push({ missing: true });
+  else {
+    const rect = pop.getBoundingClientRect();
+    const anchor = button.getBoundingClientRect();
+    const left = Math.max(8, Math.min(anchor.right - rect.width, innerWidth - rect.width - 8));
+    const top = Math.max(8, anchor.top - rect.height - 8);
+    samples.push({ dx: rect.left - left, dy: rect.top - top, replaced: pop !== initialPop,
+      width: rect.width, height: rect.height, text: pop.textContent });
+  }
+  requestAnimationFrame(sample);
+}
+window.harness = {
+  plan(value) { plans.push(value); },
+  setKind(value) { kind = value; },
+  get reads() { return reads; },
+  get pending() { return [...pending.keys()]; },
+  resolve(id, value) { pending.get(id)(value === 'old-error' ? { ok: false, message: 'old failure' } : reading(value)); pending.delete(id); },
+  startFrames() { samples = []; initialPop = document.querySelector('.sqb-pop'); sampling = true; requestAnimationFrame(sample); },
+  stopFrames() { sampling = false; return samples; },
+  unload() { onUnload(); reactRoot.unmount(); },
+};
+onLoad({
+  ui: { injectStyle(css) { const style = document.createElement('style'); style.textContent = css; document.head.append(style); return () => style.remove(); } },
+  slots: { register({ component }) { reactRoot = ReactDOM.createRoot(document.querySelector('#slot')); reactRoot.render(React.createElement(component)); return () => {}; } },
+  async dispatch(_action, { method }) {
+    if (method !== 'quota.read') return { ok: true, accounts: [], login: null };
+    reads++;
+    const planned = plans.shift() || kind;
+    if (planned.startsWith('defer:')) return new Promise(resolve => pending.set(planned.slice(6), resolve));
+    if (planned === 'throw') throw new Error('not ready');
+    return reading(planned);
+  },
+});
+window.harness.ready = true;
+</script>
+</html>
