@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.skir-zh.gpt-quota-bar",
+  "name": "GPT 订阅额度条",
+  "version": "0.1.0",
+  "changelog": "0.1.0：首次公开版本。支持 ChatGPT 5 小时 / 周额度条与详情、多账号独立 OAuth 登录和优先级管理、手工令牌、Codex CLI 只读回退、周额度显示阈值、后台刷新及离线演示模式。",
+  "description": "仅支持 ChatGPT 订阅额度：GPT 模型输入栏显示选定 ChatGPT 账号的 5 小时 / 周剩余及重置时间，点击打开额度详情与 ChatGPT 多账号管理。不自动关联或切换宿主账号。",
+  "author": "skir-zh",
+  "repository": "https://github.com/skir-zh/pi-desktop-gpt-quota-bar",
+  "license": "MIT",
+  "categories": ["productivity"],
+  "safetyNotes": "仅查询 ChatGPT。界面不接收令牌，不读取宿主密钥库。独立 OAuth 凭据加密保存于本插件数据目录，密钥同目录，安全依赖系统文件权限而非系统钥匙串；手工令牌由宿主作为普通设置保存。可选 Codex CLI 回退只读 ~/.codex/auth.json。授权期间仅监听 127.0.0.1:1455，结束或超时关闭。联网仅允许 auth.openai.com 和 chatgpt.com；不自动切换宿主账号。",
+  "i18n": {
+    "en": {
+      "name": "GPT Subscription Quota Bar",
+      "description": "ChatGPT subscriptions only: show the selected ChatGPT account's 5-hour / weekly remaining quota and resets in a GPT model's composer, with a quota popover and ChatGPT account management. Does not automatically match or switch host accounts.",
+      "safetyNotes": "ChatGPT only. Tokens never reach the renderer; the host secret store is not read. OAuth credentials are encrypted in plugin data with the key stored beside them, relying on OS file permissions rather than an OS keychain. Manual tokens are ordinary host settings. Optional Codex CLI fallback reads only ~/.codex/auth.json. OAuth listens only on 127.0.0.1:1455 while signing in. Network access is limited to auth.openai.com and chatgpt.com. Does not automatically switch host accounts."
+    },
+    "zh-CN": {
+      "name": "GPT 订阅额度条",
+      "description": "仅支持 ChatGPT 订阅额度：GPT 模型输入栏显示选定 ChatGPT 账号的 5 小时 / 周剩余及重置时间，点击打开额度详情与 ChatGPT 多账号管理。不自动关联或切换宿主账号。",
+      "safetyNotes": "仅查询 ChatGPT，不读取宿主密钥库，不向界面返回令牌。OAuth 密文与密钥保存在同一插件数据目录，依赖系统文件权限；手工令牌属于普通宿主设置。可选回退只读 Codex CLI 凭据。授权仅监听 127.0.0.1:1455；联网限 auth.openai.com 和 chatgpt.com；不自动切换宿主账号。"
+    }
+  },
+  "main": "main.js",
+  "renderer": "renderer/index.mjs",
+  "rendererActions": ["plugin.call"],
+  "rendererCallMethods": [
+    "quota.read", "quota.summary", "quota.snapshot", "quota.refresh",
+    "quota.auth.status", "quota.auth.start", "quota.auth.open", "quota.auth.submit",
+    "quota.auth.cancel", "quota.auth.logout", "quota.auth.move", "quota.setDemo"
+  ],
+  "contributes": {
+    "settings": [
+      {
+        "key": "autoDetect",
+        "title": "自动发现 Codex CLI 账号",
+        "description": "仅在没有插件 ChatGPT 账号或手工令牌时，只读 ~/.codex/auth.json 作为回退。关闭不影响插件独立授权和手工令牌。",
+        "type": "boolean",
+        "default": true
+      },
+      {
+        "key": "demoMode",
+        "title": "演示数据（不访问网络）",
+        "description": "仅渲染 ChatGPT 示例额度，不读取 CLI 凭据、不查询真实账号，演示期间不能发起登录。",
+        "type": "boolean",
+        "default": false
+      },
+      {
+        "key": "refreshSeconds",
+        "title": "自动刷新间隔（秒）",
+        "description": "缓存超过此期限后在后台刷新。范围 30–3600 秒。",
+        "type": "number",
+        "default": 300
+      },
+      {
+        "key": "weeklyShowBelowPercent",
+        "title": "周剩余额度显示阈值（%）",
+        "description": "周剩余严格低于阈值时，在 5h 旁追加周读数。默认 10，0 关闭；范围 0–100，无效值按 10 处理。只影响显示，不限制用量。保存后下一次读取生效（约 20 秒）。",
+        "type": "number",
+        "default": 10
+      },
+      {
+        "key": "credentials",
+        "title": "ChatGPT 手工令牌（JSON 对象）",
+        "description": "仅识别 openai-codex，例如 {\"openai-codex\":\"...\"}，或 {\"openai-codex\":{\"token\":\"...\",\"accountId\":\"...\"}}。由宿主作为普通设置保存，不属于 OAuth 加密存储；不要分享。",
+        "type": "json",
+        "default": "{}"
+      }
+    ]
+  },
+  "permissions": ["renderer.extension", "net.fetch", "shell.openExternal"],
+  "net": { "domains": ["auth.openai.com", "chatgpt.com"] },
+  "engines": { "piDesktop": ">=0.9.0" },
+  "activationEvents": ["onStartup"]
+}

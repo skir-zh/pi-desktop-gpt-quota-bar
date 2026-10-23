@@ -1,0 +1,30 @@
+# 依赖与构建产物
+node_modules/
+dist/
+*.piplug
+
+# 编辑器 / 系统
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+
+# 本地能力配置：项目级 MCP 服务器含发布令牌，绝不提交
+.agents/servers/
+
+# 本地密钥、授权数据与环境配置
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+quota-oauth.enc
+
+# 浏览器测试输出
+playwright-report/
+test-results/
+
+# 本地维护文档，不提交到 GitHub
+/CHANGELOG.md
+/RELEASE.md
